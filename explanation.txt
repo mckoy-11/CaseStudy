@@ -1,0 +1,301 @@
+KAKINA CHOCOLATE PRODUCTION, INVENTORY, AND SALES MANAGEMENT SYSTEM
+===================================================================
+
+1. SYSTEM PURPOSE
+-----------------
+
+This application helps Kakina Food Products Mfg. keep product, finished-stock,
+production, reservation, sales, and reporting records. Users enter transactions
+manually through a text-based console. The console sends JSON requests to a
+Python FastAPI backend. The backend validates requests, applies business rules,
+and saves records in a local JSON file.
+
+The application is intended for one business. It is not a GUI point-of-sale
+system, does not process online payments, and does not connect to Messenger or
+other sales channels. Channel names are recorded as order information only.
+
+
+2. TECHNOLOGY AND ARCHITECTURE
+------------------------------
+
+Language:       Python
+Console UI:     Python modules in ui/
+Service layer:  Python HTTP clients in service/
+Backend API:    FastAPI application in api/main.py
+Data models:    Pydantic request and response models in api/schemas.py
+Transport:      JSON over HTTP
+Persistence:    Local JSON file at api/data.json
+
+The normal request flow is:
+
+  User
+    -> Console screen (ui/)
+    -> Feature service (service/)
+    -> Shared APIClient (service/api_client.py)
+    -> FastAPI route (api/main.py)
+    -> Pydantic model validation (api/schemas.py)
+    -> In-memory records and api/data.json
+    -> JSON response back to the console
+
+The console does not open or edit api/data.json directly. Keeping the UI and
+backend separate means both communicate through explicit HTTP endpoints and
+JSON request/response data.
+
+
+3. PROJECT FILES
+----------------
+
+main.py
+    Starts the console application.
+
+api/main.py
+    Creates the FastAPI application, defines endpoint behavior, applies
+    business rules, holds the runtime record collections, and loads/saves
+    the JSON data file.
+
+api/schemas.py
+    Defines the canonical Pydantic request and response models used to validate
+    product, production, inventory, order, and report data.
+
+api/data.json
+    Runtime business data. The backend creates or updates this file when
+    records change. Keep backups because it is the system's persistent store.
+
+ui/main_menu.py
+    Creates shared services and routes the user to the dashboard and feature
+    screens.
+
+ui/
+    Console screens for inventory, orders and reservations, products,
+    production, and reports. The shared input and table helpers are in
+    utils/component.py.
+
+service/
+    Feature-specific API wrappers. These turn screen actions into HTTP
+    requests. APIClient in service/api_client.py handles request URLs,
+    timeouts, JSON responses, and errors.
+
+requirements.txt
+    Lists the Python packages used to run and test the project.
+
+tests/
+    Automated tests for the console menu, production input, API models, product
+    CRUD, and JSON persistence.
+
+
+4. STARTING THE APPLICATION
+---------------------------
+
+Open two terminals in the project directory.
+
+Install dependencies:
+
+    python -m pip install -r requirements.txt
+
+Start the backend in the first terminal:
+
+    python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
+
+Start the console in the second terminal:
+
+    python main.py
+
+The API base address defaults to:
+
+    http://127.0.0.1:8000
+
+To use another API address, set KAKINA_API_URL before starting the console.
+FastAPI's interactive endpoint documentation is available at:
+
+    http://127.0.0.1:8000/docs
+
+Run automated tests from the project directory with:
+
+    python -m pytest -q
+
+
+5. CONSOLE NAVIGATION
+---------------------
+
+The top-level menu is organized around these options:
+
+  1. Dashboard
+  2. Inventory management
+  3. Sales and reservations
+  4. Reports
+  5. Products and production
+  0. Exit
+
+Option 5 opens the supporting menu:
+
+  1. Product catalog
+  2. Production
+  0. Back
+
+Event setup/closing and expense entry/editing are not offered as console
+screens. Their API records and routes remain in the backend. Open events may
+still be listed by the sales screen to help select a selling location.
+
+
+6. PRODUCT CATALOG
+------------------
+
+The product catalog stores a product ID, name, selling price, optional
+description/category/packaging/weight/pack size, reorder level, and active
+state.
+
+The console supports listing, creating, updating, and deactivating products.
+The API rejects duplicate product IDs and duplicate names. A product price
+must be greater than zero. Deactivation is a soft delete: the product is
+hidden from the active catalog, but historical records are retained.
+
+The API seeds the five Kakina interview products when it starts, without
+replacing existing records with matching IDs or names.
+
+
+7. PRODUCTION
+-------------
+
+The console lets the operator record a production batch and view production
+history. A batch identifies a product and quantity produced, and accepts
+packaging, labor, and other batch costs.
+
+When the backend accepts a batch, it records the batch and increases that
+product's stock at LOC-CENTRAL. It also records an inventory movement. The
+reported unit production cost is the total batch cost divided by the produced
+quantity.
+
+The current console production form sends an empty ingredients_used list. It
+does not ask for raw-material usage or recipes. The API still has ingredient
+records and can deduct ingredients when a batch request includes ingredient
+usage, but that is not part of this console workflow.
+
+
+8. FINISHED-PRODUCT INVENTORY
+-----------------------------
+
+Inventory is tracked by location and product. The main inventory screen can:
+
+  - Show stock for all locations or one location.
+  - Transfer stock between two different locations.
+  - Reconcile system stock against a physical count.
+  - Show movement history, optionally filtered by location or product.
+
+The API reports on-hand, reserved, and available stock. Available stock is
+on-hand stock less active pending reservation quantities for that product and
+location.
+
+Transfers reduce the source location and increase the destination location.
+Physical-count adjustments record a reason and a movement. An adjustment is
+rejected if it would reduce stock below quantities currently reserved.
+
+Production adds stock to LOC-CENTRAL. Completed sales remove stock from the
+order's location. Every operation records an inventory movement for audit and
+history.
+
+
+9. SALES AND RESERVATIONS
+-------------------------
+
+The sales screen supports:
+
+  - Recording a completed sale.
+  - Creating a pending reservation.
+  - Viewing pending reservations.
+  - Completing a reservation.
+  - Cancelling a reservation.
+
+An order includes a generated order ID, sales channel, location, customer and
+optional contact details, one or more product quantities, payment method,
+fulfillment method, and delivery fee. Product prices are taken from the active
+catalog; the backend calculates item subtotals and the order total.
+
+The supported channel values include booth, Messenger, direct offering,
+WhatsApp, Facebook, Instagram, walk-in, and online. These are labels only:
+there is no payment gateway, online checkout, or messaging integration.
+
+Pending reservations hold stock availability but do not immediately deduct
+physical on-hand stock. Completing a reservation deducts its items and changes
+its status to completed. Cancelling it changes the status to cancelled and
+releases the hold. A completed sale deducts stock when it is created.
+Insufficient available stock prevents the sale or reservation.
+
+
+10. DASHBOARD AND REPORTS
+-------------------------
+
+The dashboard combines operational and financial information, including
+active products, available finished stock, low-stock products, production
+batch count, pending reservations, open-event count, completed sales, today's
+sales, estimated cost of goods sold, recorded expenses, and estimated profit.
+
+The reports screen offers:
+
+  - Daily sales summary.
+  - Sales summary filtered by date range and/or location.
+  - Best-selling products.
+  - Sales by product.
+  - Sales by location.
+  - Production costs.
+  - Expense summary.
+  - Estimated financial summary.
+  - Finished-product low-stock warnings.
+
+Sales reports include completed orders, not pending reservations. Product and
+location reports use recorded order items and totals. Date and location filters
+are applied by the backend where supported.
+
+Financial figures are estimates, not formal accounting statements. Estimated
+cost of goods sold is calculated from recorded production batches and the
+quantities sold. Estimated profit is sales revenue minus estimated production
+cost and applicable operating expenses. If production cost history is missing
+for a sold product, estimated profit is reported as unavailable. Expense
+records can be included in reports even though expense entry is not in the
+console menu.
+
+
+11. BACKEND/API CAPABILITIES
+----------------------------
+
+The API also has endpoints for functions that do not currently have dedicated
+console entry screens:
+
+  - Ingredients: list, create, update, and adjust raw-material stock.
+  - Events: create and list events, look them up, and close events to return
+    remaining location stock to central inventory.
+  - Expenses: create, list, update, and delete expense records.
+
+Other endpoint groups support product catalog, production batches, inventory
+stock/transfers/adjustments/movements, orders/reservations, and reports. The
+interactive API documentation at /docs lists the current routes and request
+schemas.
+
+
+12. JSON DATA AND SAFETY
+------------------------
+
+The backend loads JSON data into in-memory collections when its Python module
+is imported. Successful data-changing operations save the updated collections
+to api/data.json. Saving writes a temporary file in the same directory and
+replaces the data file after writing, reducing the risk of a partially written
+JSON file. A process-local lock is used around storage writes and critical
+inventory operations.
+
+The JSON file is not a multi-user database. It has no database transactions,
+authentication, user accounts, role-based permissions, or distributed locking.
+Run the API only in a trusted environment, do not expose it directly to the
+public internet, and make regular backups of api/data.json.
+
+
+13. IMPORTANT OPERATING NOTES
+-----------------------------
+
+  - Start the API before using the console; the console depends on HTTP calls.
+  - If the API is unreachable or returns an error, the console reports the
+    connection/API error instead of presenting it as a successful operation.
+  - Use consistent location IDs when recording stock and orders. LOC-CENTRAL
+    is the central stock location; event IDs are used as event location IDs.
+  - Product deactivation preserves history and is not permanent record deletion.
+  - Keep production quantities and costs accurate because reports use them to
+    estimate product costs and profit.
+  - Back up api/data.json before changing or migrating the stored business data.

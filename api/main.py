@@ -9,7 +9,7 @@ from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException, Query, status
 from pydantic import BaseModel
 
-from schemas import (
+from .schemas import (
     EventCreate,
     ExpenseCreate,
     ExpenseUpdate,

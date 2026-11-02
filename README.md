@@ -2,8 +2,9 @@
 
 A Python console UI connects to a FastAPI backend for managing Kakina's products,
 production, finished-product inventory, booth events, reservations, sales,
-expenses, and reports. The UI uses HTTP services; it never edits backend storage
-directly.
+and reports. The UI uses HTTP services; it never edits backend storage directly.
+For a complete walkthrough of the architecture and business rules, see
+[explanation.txt](explanation.txt).
 
 ## Business background
 
@@ -41,7 +42,8 @@ python main.py
 ```
 
 The API defaults to `http://127.0.0.1:8000`. Set `KAKINA_API_URL` to use another
-address. Interactive API documentation is available at `/docs`.
+address. Interactive API documentation is available at
+`http://127.0.0.1:8000/docs`.
 
 The API persists records in `api/data.json`. Keep backups of this file; it contains
 the business records.
@@ -54,17 +56,28 @@ validates, processes, and saves it. API request and response models are defined
 centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
 `api/main.py`.
 
+The console's main menu focuses on:
+
+1. Dashboard
+2. Inventory management
+3. Sales and reservations
+4. Reports
+5. Products and production
+
+The Products and production option opens a submenu for product catalog CRUD
+and production batches. Event management and expense entry are not available
+as console screens. Their records and API routes remain available to reports
+and backend integrations.
+
 ### Dashboard and navigation
 
 - **Problem:** Operators need a quick view of current business activity and
   direct access to their most-used inventory, sales, reservation, and reporting
   workflows.
 - **Operations:** The main menu prioritizes the dashboard, inventory management,
-  sales and reservations, and reports. Product catalog, production, event, and
-  expense entry are not part of the console operations menu. The supporting
-  menu contains product catalog and production only. The
-  dashboard requests inventory, production, reservation, sales, and financial
-  metrics.
+  sales and reservations, and reports. The supporting menu contains product
+  catalog and production only. The dashboard requests inventory, production,
+  reservation, sales, and financial metrics.
 - **Function:** `MainMenu.run()` and `MainMenu.dashboard()` in `ui/main_menu.py`;
   `ReportService.dashboard()` in `service/report_service.py`.
 - **Input:** No user data; the dashboard fetches current backend records.
@@ -95,6 +108,9 @@ centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
   central inventory.
 - **Function:** `ProductionScreen` (`ui/production.py`) and
   `ProductionService` (`service/production_service.py`); API route `/batches`.
+- **Input:** Product ID, quantity produced, packaging cost, labor cost, and other
+  batch costs. The console sends an empty ingredient-usage list; it does not
+  collect ingredient or recipe data.
 - **Output:** A production batch with total and per-unit cost, plus updated
   finished-product stock at `LOC-CENTRAL`.
 
@@ -137,7 +153,8 @@ centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
   selling location.
 - **Operations:** Query sales, best sellers, locations, production costs,
   expenses, low stock, and financial summaries by supported date/location filters.
-  Expense entry and management are not exposed in the console.
+  Expense entry and management are not exposed in the console; the expense API
+  can still provide data for reports.
 - **Function:** `ReportScreen` (`ui/reports.py`) and `ReportService`
   (`service/report_service.py`); API routes `/reports`.
 - **Input:** Reports accept date range and/or location.
@@ -154,15 +171,24 @@ centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
 
 | Route | Purpose |
 |---|---|
-| `/products` | Product catalog CRUD and deactivation |
-| `/batches` | Production history, batch costs, finished stock |
-| `/inventory/stock`, `/inventory/transfer`, `/inventory/adjustments`, `/inventory/movements` | Stock, transfers, counts, and history |
-| `/events` | Event setup, lookup, and unsold-stock return (API only) |
-| `/orders` | Sales and reservations, list and status transitions |
-| `/expenses` | Expense create/list/update/delete (API only) |
-| `/reports/dashboard`, `/reports/low-stock` | Operational dashboard and warnings |
-| `/reports/daily-sales`, `/reports/product-sales`, `/reports/best-sellers`, `/reports/location-sales` | Sales analysis |
-| `/reports/production-costs`, `/reports/expenses`, `/reports/financial-summary` | Cost and financial analysis |
+| `GET/POST /products` | List active products and create a product |
+| `GET /products/{product_id}` | Get an active product |
+| `PATCH/DELETE /products/{product_id}` | Update or deactivate a product |
+| `POST /batches`, `GET /batches` | Record production and list batch history |
+| `GET /batches/{batch_id}` | Get a production batch |
+| `GET /inventory/stock` | Read on-hand, reserved, and available stock |
+| `POST /inventory/transfer` | Transfer finished stock between locations |
+| `POST /inventory/adjustments` | Apply a physical-count adjustment |
+| `GET /inventory/movements` | Read stock movement history |
+| `GET/POST /orders` | List orders or create a sale/reservation |
+| `GET /orders/{order_id}` | Get an order |
+| `POST /orders/{order_id}/complete` | Complete a pending reservation |
+| `POST /orders/{order_id}/cancel` | Cancel a pending reservation |
+| `/reports/*` | Dashboard, sales, product, location, production-cost, expense, and financial summaries |
+| `/ingredients/*`, `/events/*`, `/expenses/*` | Raw-material, event, and expense endpoints; API only, not console screens |
+
+View exact request/response fields and all registered endpoints at
+`http://127.0.0.1:8000/docs` while the API is running.
 
 ## Estimation and operational limits
 
@@ -174,3 +200,17 @@ centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
   send messages through Messenger.
 - The backend uses a local JSON file and has no authentication or role-based
   access. Run it in a trusted environment and back up `api/data.json`.
+
+The system is for one business and is manually operated by authorized staff.
+It has no graphical POS cashier interface or online payment gateway. Recorded
+payment methods and channels are bookkeeping fields only.
+
+## Error handling and tests
+
+The console's API client reports connection failures and unsuccessful HTTP
+responses instead of showing false success. Run the tests from the project
+directory:
+
+```powershell
+python -m pytest -q
+```
