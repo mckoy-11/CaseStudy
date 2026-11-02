@@ -50,7 +50,9 @@ the business records.
 
 Each feature follows **Problem → Operations → Function → Output → Requirement**.
 The screen gathers input, the service sends it through `APIClient`, and the API
-validates, processes, and saves it.
+validates, processes, and saves it. API request and response models are defined
+centrally in `api/schemas.py`; endpoints and JSON persistence are implemented in
+`api/main.py`.
 
 ### Dashboard and navigation
 

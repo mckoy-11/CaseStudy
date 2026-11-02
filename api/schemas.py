@@ -1,157 +1,214 @@
+"""Canonical request and response models for the Kakina API."""
+
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field, PositiveInt
 
 
-# ==========================================
-# Enums for System Status & Categories
-# ==========================================
-
-class PackagingType(str, Enum):
-    POUCH = "Pouch"
-    BAR = "Bar"
-
-
-class UnitType(str, Enum):
-    GRAMS = "g"
-    KILOGRAMS = "kg"
-    PIECES = "pcs"
-    PACKS = "packs"
+class ProductCreate(BaseModel):
+    product_id: str
+    name: str
+    unit_price: float = Field(gt=0)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    packaging: Optional[str] = None
+    weight_grams: Optional[float] = Field(default=None, gt=0)
+    pieces_per_pack: Optional[int] = Field(default=None, gt=0)
+    reorder_level: int = Field(default=10, ge=0)
+    active: bool = True
 
 
-class OrderChannel(str, Enum):
-    BOOTH = "Booth Sale"
-    MESSENGER = "Messenger Order"
-    DIRECT_OFFERING = "Direct Sale (Pag-aalok)"
+class ProductResponse(ProductCreate):
+    pass
 
 
-class PaymentMethod(str, Enum):
-    CASH = "Cash"
-    GCASH = "GCash"
-
-
-class FulfillmentType(str, Enum):
-    PICKUP = "Store Pickup"
-    DELIVERY = "Delivery"
-
-
-class OrderStatus(str, Enum):
-    RESERVED = "Reserved"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
-
-
-class MovementType(str, Enum):
-    PRODUCTION_IN = "Production Stock In"
-    BOOTH_TRANSFER_OUT = "Transfer to Booth"
-    BOOTH_RETURN_IN = "Return from Booth"
-    DIRECT_SALE_OUT = "Direct Sale Stock Out"
-    SPOILAGE_ADJUSTMENT = "Spoilage / Loss"
-
-
-# ==========================================
-# Core Domain Schemas
-# ==========================================
-
-class Ingredient(BaseModel):
-    """Raw materials harvested or purchased for production."""
-    ingredient_id: str = Field(..., json_schema_extra={"example": "ING-001"})
-    name: str = Field(..., json_schema_extra={"example": "Cacao Beans"})
-    unit: UnitType = Field(..., json_schema_extra={"example": UnitType.KILOGRAMS.value})
-    cost_per_unit: float = Field(..., ge=0.0, description="Cost in PHP")
-    current_stock_qty: float = Field(..., ge=0.0)
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    unit_price: Optional[float] = Field(default=None, gt=0)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    packaging: Optional[str] = None
+    weight_grams: Optional[float] = Field(default=None, gt=0)
+    pieces_per_pack: Optional[int] = Field(default=None, gt=0)
+    reorder_level: Optional[int] = Field(default=None, ge=0)
+    active: Optional[bool] = None
 
 
 class IngredientUsage(BaseModel):
-    """Tracks raw materials consumed per production batch."""
-    ingredient_id: str
-    quantity_used: float = Field(..., gt=0.0)
-    subtotal_cost: float = Field(..., ge=0.0, description="Computed cost in PHP")
+    ingredient_name: Optional[str] = None
+    ingredient_id: Optional[str] = None
+    quantity_used: float = Field(ge=0)
+    cost_per_unit: Optional[float] = Field(default=None, ge=0)
 
 
-class Product(BaseModel):
-    """Chocolate product catalog master data."""
-    product_id: str = Field(..., json_schema_extra={"example": "PROD-001"})
-    name: str = Field(..., json_schema_extra={"example": "60% Dark Chocolate with Pistachio Nuts"})
-    packaging: PackagingType = Field(..., json_schema_extra={"example": PackagingType.BAR.value})
-    weight_grams: float = Field(..., gt=0.0, json_schema_extra={"example": 60.0})
-    unit_price: float = Field(..., ge=0.0, json_schema_extra={"example": 150.0}, description="Price in PHP")
-    pieces_per_pack: Optional[int] = Field(None, json_schema_extra={"example": 11}, description="E.g., 11 pcs for Tablea")
-    reorder_level: int = Field(default=10, ge=0, description="Threshold for low-stock warning")
-
-
-class ProductionBatch(BaseModel):
-    """Chocolate production run and expense computation."""
-    batch_id: str = Field(..., json_schema_extra={"example": "BATCH-20261102-01"})
-    production_date: datetime = Field(default_factory=datetime.now)
+class ProductionBatchCreate(BaseModel):
+    batch_id: str
     product_id: str
-    quantity_produced: PositiveInt = Field(..., json_schema_extra={"example": 50})
+    quantity_produced: PositiveInt
     ingredients_used: List[IngredientUsage]
-    total_batch_cost: float = Field(..., ge=0.0, description="Sum of ingredient costs")
-    unit_production_cost: float = Field(..., ge=0.0, description="Cost per unit produced")
-    notes: Optional[str] = None
+    packaging_cost: float = Field(default=0, ge=0)
+    labor_cost: float = Field(default=0, ge=0)
+    other_cost: float = Field(default=0, ge=0)
 
 
-class Location(BaseModel):
-    """Sales and stock points (Central Storage or Booth Events)."""
-    location_id: str = Field(..., json_schema_extra={"example": "LOC-CLSU"})
-    name: str = Field(..., json_schema_extra={"example": "CLSU Booth Event"})
-    province: str = Field(default="Nueva Ecija")
-    is_event_booth: bool = Field(default=True)
+class ProductionBatchResponse(ProductionBatchCreate):
+    production_date: datetime
+    total_batch_cost: float
+    unit_production_cost: float
 
 
-class InventoryMovement(BaseModel):
-    """Audit trail for stock transfers, booth disbursements, and returns."""
-    movement_id: str = Field(..., json_schema_extra={"example": "MOV-1002"})
-    timestamp: datetime = Field(default_factory=datetime.now)
+class IngredientCreate(BaseModel):
+    ingredient_id: str
+    name: str
+    unit: str
+    unit_cost: float = Field(ge=0)
+    current_stock_qty: float = Field(ge=0)
+    reorder_level: float = Field(default=0, ge=0)
+
+
+class IngredientAdjustment(BaseModel):
+    quantity_change: float
+    reason: str = Field(min_length=1, max_length=300)
+
+
+class IngredientUpdate(BaseModel):
+    name: Optional[str] = None
+    unit: Optional[str] = None
+    unit_cost: Optional[float] = Field(default=None, ge=0)
+    reorder_level: Optional[float] = Field(default=None, ge=0)
+    active: Optional[bool] = None
+
+
+class InventoryTransferCreate(BaseModel):
+    movement_id: str
+    source_location_id: str
+    destination_location_id: str
     product_id: str
-    source_location_id: str = Field(..., json_schema_extra={"example": "LOC-CENTRAL"})
-    destination_location_id: str = Field(..., json_schema_extra={"example": "LOC-TALAVERA"})
     quantity: PositiveInt
-    movement_type: MovementType
 
 
-class OrderItem(BaseModel):
-    """Individual item line within a sales transaction or reservation."""
-    product_id: str
-    quantity: PositiveInt
-    unit_price: float = Field(..., ge=0.0)
-    subtotal: float = Field(..., ge=0.0)
+class InventoryTransferResponse(InventoryTransferCreate):
+    timestamp: datetime
+    movement_type: str = "transfer"
+    reason: str = ""
 
 
-class SalesOrder(BaseModel):
-    """Complete sales transaction, reservation, or booth checkout."""
-    order_id: str = Field(..., json_schema_extra={"example": "ORD-20261102-088"})
-    timestamp: datetime = Field(default_factory=datetime.now)
-    channel: OrderChannel
-    location_id: str = Field(..., description="Where the transaction took place")
-    
-    # Customer Details (Optional for quick cash booth sales, required for reservations)
-    customer_name: Optional[str] = Field(None, json_schema_extra={"example": "Juan Dela Cruz"})
-    messenger_account: Optional[str] = Field(None, json_schema_extra={"example": "fb.com/juandelacruz"})
-    contact_number: Optional[str] = None
-    
-    # Order Content & Payment
-    items: List[OrderItem]
-    total_amount: float = Field(..., ge=0.0)
-    payment_method: PaymentMethod
-    
-    # Fulfillment
-    fulfillment: FulfillmentType
-    delivery_fee: float = Field(default=0.0, ge=0.0)
-    status: OrderStatus = Field(default=OrderStatus.COMPLETED)
-
-
-# ==========================================
-# Reporting / Aggregations Schemas
-# ==========================================
-
-class DailyLocationReport(BaseModel):
-    """Aggregated sales report by location/booth for daily summaries."""
-    report_date: datetime
+class InventoryAdjustment(BaseModel):
     location_id: str
-    total_items_sold: int
-    gross_revenue: float
+    product_id: str
+    quantity_change: int
+    reason: str = Field(min_length=1, max_length=300)
+
+
+class EventCreate(BaseModel):
+    event_id: str
+    name: str
+    location_name: str
+    province: str = "Nueva Ecija"
+    event_date: Optional[datetime] = None
+
+
+class ExpenseCreate(BaseModel):
+    expense_id: str
+    category: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=500)
+    amount: float = Field(gt=0)
+    expense_date: Optional[datetime] = None
+    related_batch_id: Optional[str] = None
+    location_id: Optional[str] = None
+
+
+class ExpenseUpdate(BaseModel):
+    category: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    description: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    amount: Optional[float] = Field(default=None, gt=0)
+    expense_date: Optional[datetime] = None
+    related_batch_id: Optional[str] = None
+    location_id: Optional[str] = None
+
+
+class OrderItemCreate(BaseModel):
+    product_id: str
+    quantity: PositiveInt
+
+
+class OrderItemResponse(OrderItemCreate):
+    unit_price: float
+    subtotal: float
+
+
+class OrderChannel(str, Enum):
+    BOOTH = "booth"
+    MESSENGER = "messenger"
+    DIRECT_OFFERING = "direct_offering"
+    WHATSAPP = "whatsapp"
+    FACEBOOK = "facebook"
+    INSTAGRAM = "instagram"
+    WALK_IN = "walk_in"
+    ONLINE = "online"
+
+
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class ReservationStatusUpdate(BaseModel):
+    status: OrderStatus
+
+
+class PaymentMethod(str, Enum):
+    CASH = "cash"
+    GCASH = "gcash"
+    BANK_TRANSFER = "bank_transfer"
+
+
+class FulfillmentMethod(str, Enum):
+    PICKUP = "pickup"
+    DELIVERY = "delivery"
+    WALK_IN = "walk_in"
+
+
+class SalesOrderCreate(BaseModel):
+    order_id: str
+    channel: OrderChannel
+    location_id: str
+    customer_name: str
+    messenger_account: Optional[str] = None
+    contact_number: Optional[str] = None
+    items: List[OrderItemCreate] = Field(min_length=1)
+    delivery_fee: float = 0.0
+    payment_method: PaymentMethod
+    fulfillment: FulfillmentMethod
+    status: OrderStatus = OrderStatus.PENDING
+
+
+class SalesOrderResponse(BaseModel):
+    order_id: str
+    channel: OrderChannel
+    location_id: str
+    customer_name: str
+    messenger_account: Optional[str] = None
+    contact_number: Optional[str] = None
+    items: List[OrderItemResponse]
+    delivery_fee: float = 0.0
+    payment_method: PaymentMethod
+    fulfillment: FulfillmentMethod
+    status: OrderStatus = OrderStatus.PENDING
+    timestamp: datetime
+    total_amount: float
+    estimated_cogs: Optional[float] = None
+
+
+class SalesSummaryResponse(BaseModel):
     total_orders: int
-    unsold_retained_stock: int
+    gross_revenue: float
+    total_items_sold: int
+    revenue_by_channel: Dict[str, float] = Field(default_factory=dict)
+    estimated_cogs: Optional[float] = None
+    recorded_expenses: float = 0
+    estimated_profit: Optional[float] = None
+    profit_note: str = "Estimated profit is unavailable when production cost data is incomplete."
