@@ -181,13 +181,3 @@ validates, processes, and saves it.
   send messages through Messenger.
 - The backend uses a local JSON file and has no authentication or role-based
   access. Run it in a trusted environment and back up `api/data.json`.
-
-## Error handling and tests
-
-`APIClient` reports connection failures and unsuccessful HTTP responses through
-typed exceptions. The console displays errors instead of showing a false success.
-Run the test suite from the project directory:
-
-```powershell
-python -m pytest -q
-```
