@@ -9,18 +9,13 @@ from service import (
     APIConnectionError,
     APIError,
     EventService,
-    ExpenseService,
     InventoryService,
-    IngredientService,
     OrderService,
     ProductService,
     ProductionService,
     ReportService,
 )
 from ui.inventory import InventoryScreen
-from ui.events import EventScreen
-from ui.expenses import ExpenseScreen
-from ui.ingredients import IngredientScreen
 from ui.orders import OrderScreen
 from ui.products import ProductScreen
 from ui.production import ProductionScreen
@@ -35,23 +30,18 @@ class MainMenu:
         self.client = client or APIClient()
         self.product_service = ProductService(self.client)
         self.production_service = ProductionService(self.client)
-        self.ingredient_service = IngredientService(self.client)
         self.inventory_service = InventoryService(self.client)
         self.order_service = OrderService(self.client)
         self.report_service = ReportService(self.client)
         self.event_service = EventService(self.client)
-        self.expense_service = ExpenseService(self.client)
         self.screens = {
-            2: ProductScreen(self.product_service),
-            3: IngredientScreen(self.ingredient_service),
-            4: ProductionScreen(
-                self.production_service, self.product_service, self.ingredient_service
-            ),
-            5: InventoryScreen(self.inventory_service, self.product_service),
-            6: EventScreen(self.event_service, self.inventory_service),
-            7: OrderScreen(self.order_service, self.product_service, self.event_service),
-            8: ExpenseScreen(self.expense_service, self.production_service),
-            9: ReportScreen(self.report_service),
+            2: InventoryScreen(self.inventory_service, self.product_service),
+            3: OrderScreen(self.order_service, self.product_service, self.event_service),
+            4: ReportScreen(self.report_service),
+        }
+        self.operations_screens = {
+            1: ProductScreen(self.product_service),
+            2: ProductionScreen(self.production_service, self.product_service),
         }
 
     def dashboard(self) -> dict[str, Any]:
@@ -66,10 +56,8 @@ class MainMenu:
             ["Dashboard metric", "Value"],
             [
                 ["Active products", report["total_products"]],
-                ["Tracked ingredients", report["total_ingredients"]],
                 ["Available finished stock", report["available_finished_stock"]],
                 ["Low-stock products", len(report["low_stock_products"])],
-                ["Low-stock ingredients", len(report["low_stock_ingredients"])],
                 ["Production batches", report["production_batches"]],
                 ["Pending reservations", report["pending_reservations"]],
                 ["Open events", report["open_events"]],
@@ -100,14 +88,10 @@ class MainMenu:
                 header("Kakina Business Management System")
                 choice = show_menu([
                     "[1] Dashboard",
-                    "[2] Product catalog",
-                    "[3] Ingredients and raw-material stock",
-                    "[4] Production",
-                    "[5] Finished-product inventory",
-                    "[6] Booth events",
-                    "[7] Orders, reservations, and sales",
-                    "[8] Expenses",
-                    "[9] Reports",
+                    "[2] Inventory management",
+                    "[3] Sales and reservations",
+                    "[4] Reports",
+                    "[5] Products and production",
                     "[0] Exit",
                 ])
                 if choice in (0, None):
@@ -121,6 +105,8 @@ class MainMenu:
                 try:
                     if choice == 1:
                         self.dashboard()
+                    elif choice == 5:
+                        self.run_operations_menu()
                     elif choice in self.screens:
                         self.screens[choice].run()
                     else:
@@ -131,3 +117,22 @@ class MainMenu:
                 input("\nPress Enter to continue...")
         finally:
             self.client.close()
+
+    def run_operations_menu(self) -> None:
+        """Route supporting catalog and business-operation screens."""
+        while True:
+            choice = show_menu([
+                "[1] Product catalog",
+                "[2] Production",
+                "[0] Back",
+            ])
+            if choice == 0:
+                return
+            if choice is None or choice not in self.operations_screens:
+                print("Select a valid operations option.")
+                continue
+            try:
+                self.operations_screens[choice].run()
+            except (APIError, APIConnectionError, ValueError) as exc:
+                print(f"\nError: {exc}")
+            input("\nPress Enter to continue...")

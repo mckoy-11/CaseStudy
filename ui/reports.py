@@ -141,10 +141,6 @@ class ReportScreen:
                 for row in report["products"]
             ],
         )
-        show_table(
-            ["Ingredient ID", "Ingredient"],
-            [[row["ingredient_id"], row["name"]] for row in report["ingredients"]],
-        )
         return report
 
     def show_production_costs(self) -> dict:

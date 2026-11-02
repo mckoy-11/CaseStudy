@@ -7,22 +7,19 @@ from uuid import uuid4
 
 from service.product_service import ProductService
 from service.production_service import ProductionService
-from service.ingredient_service import IngredientService
 from utils.component import ask_number, ask_text, display_records, show_menu
 
 
 class ProductionScreen:
-    """Provide production batch input using the API's batch schema."""
+    """Record finished-product output and batch-level production costs."""
 
     def __init__(
         self,
         production: ProductionService,
         products: ProductService,
-        ingredients: IngredientService,
     ) -> None:
         self.production = production
         self.products = products
-        self.ingredients = ingredients
 
     def run(self) -> None:
         choice = show_menu([
@@ -44,32 +41,11 @@ class ProductionScreen:
             product_list,
             (("ID", "product_id"), ("Product", "name"), ("Price", "unit_price")),
         )
-        ingredients = self.ingredients.list_ingredients()
-        display_records(
-            "Ingredient Stock",
-            ingredients,
-            (("ID", "ingredient_id"), ("Ingredient", "name"), ("Stock", "current_stock_qty"), ("Unit", "unit")),
-        )
-        usage = []
-        while True:
-            ingredient_id = ask_text("Ingredient ID (blank when finished): ", required=False)
-            if not ingredient_id:
-                break
-            ingredient = next((item for item in ingredients if item["ingredient_id"] == ingredient_id), None)
-            if ingredient is None:
-                raise ValueError(f"Unknown ingredient ID: {ingredient_id}")
-            usage.append({
-                "ingredient_id": ingredient_id,
-                "ingredient_name": ingredient["name"],
-                "quantity_used": ask_number("Quantity used: ", minimum=0.001),
-            })
-        if not usage:
-            raise ValueError("A production batch must include at least one ingredient.")
         payload = {
             "batch_id": f"BATCH-{datetime.now():%Y%m%d}-{uuid4().hex[:6].upper()}",
             "product_id": ask_text("Product ID: "),
             "quantity_produced": int(ask_number("Quantity produced: ", minimum=1)),
-            "ingredients_used": usage,
+            "ingredients_used": [],
             "packaging_cost": ask_number("Packaging cost for batch (PHP, 0 if none): ", minimum=0),
             "labor_cost": ask_number("Labor cost for batch (PHP, 0 if none): ", minimum=0),
             "other_cost": ask_number("Other production cost (PHP, 0 if none): ", minimum=0),

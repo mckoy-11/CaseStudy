@@ -1,15 +1,16 @@
 # Kakina Food Products Mfg. Management System
 
 A Python console UI connects to a FastAPI backend for managing Kakina's products,
-raw ingredients, production, inventory, booth events, reservations, sales, expenses,
-and reports. The UI uses HTTP services; it never edits backend storage directly.
+production, finished-product inventory, booth events, reservations, sales,
+expenses, and reports. The UI uses HTTP services; it never edits backend storage
+directly.
 
 ## Business background
 
 Kakina Food Products Mfg. is a family business established in 2019. It produces
 chocolate using cacao from the family's farm, including pure cacao tablea and 60%
 dark chocolate with pistachio or mango. The interview described notebook-based
-tracking of ingredient costs, production, stock, booth sales, Messenger orders,
+tracking of production, stock, booth sales, Messenger orders,
 reservations, and expenses. Manual counting and calculations make it harder to
 reconcile stock and compare sales across events and locations.
 
@@ -53,20 +54,26 @@ validates, processes, and saves it.
 
 ### Dashboard and navigation
 
-- **Problem:** Operators need a quick view of current business activity.
-- **Operations:** The main menu routes to feature screens. The dashboard requests
-  operational metrics and sales/financial summaries.
+- **Problem:** Operators need a quick view of current business activity and
+  direct access to their most-used inventory, sales, reservation, and reporting
+  workflows.
+- **Operations:** The main menu prioritizes the dashboard, inventory management,
+  sales and reservations, and reports. Product catalog, production, event, and
+  expense entry are not part of the console operations menu. The supporting
+  menu contains product catalog and production only. The
+  dashboard requests inventory, production, reservation, sales, and financial
+  metrics.
 - **Function:** `MainMenu.run()` and `MainMenu.dashboard()` in `ui/main_menu.py`;
   `ReportService.dashboard()` in `service/report_service.py`.
 - **Input:** No user data; the dashboard fetches current backend records.
-- **Output:** Active product and ingredient counts, available finished stock,
-  low-stock warnings, production batch and pending reservation counts, open events,
+- **Output:** Active products, available finished stock, low-stock warnings,
+  production batch and pending reservation counts, open events,
   all-time and today's completed-sales summaries, and estimated financial totals.
 - **Requirement:** Quickly monitor inventory, reservations, events, and sales.
 
 ### Products
 
-- **Problem:** Sales and production need a consistent product catalog and prices.
+- **Problem:** Sales need a consistent product catalog and prices.
 - **Operations:** List, create, update, and deactivate catalog products.
 - **Function:** `ProductScreen` in `ui/products.py` and `ProductService` in
   `service/product_service.py`; API routes under `/products`.
@@ -77,40 +84,29 @@ validates, processes, and saves it.
   active catalog. Product IDs and names must be unique.
 - **Requirement:** Maintain the five interview products and their selling prices.
 
-### Ingredients and production
+### Production
 
-- **Problem:** Production needs ingredient quantities, costs, and finished-unit
-  cost recorded together.
-- **Operations:** Track ingredient stock and reorder levels, adjust raw materials,
-  create production batches, and list production history. A batch deducts managed
-  ingredients and adds finished products to central stock.
-- **Function:** `IngredientScreen` (`ui/ingredients.py`),
-  `ProductionScreen` (`ui/production.py`), and the corresponding services under
-  `service/`; API routes `/ingredients` and `/batches`.
-- **Input:** Ingredient ID/name, unit, unit cost, opening quantity and reorder
-  level; batch ID, product, production quantity, ingredient usage, packaging,
-  labor, and other costs.
-- **Output:** Updated ingredient quantity and movement history; a batch with total
-  production cost and unit cost; finished-product stock at `LOC-CENTRAL`.
-  Ingredient use is rejected if the available managed stock is insufficient.
-- **Requirement:** Replace handwritten ingredient/production records and estimate
-  product cost.
+- **Problem:** Finished goods produced need to be added to inventory with batch
+  costs recorded, without maintaining ingredient or recipe records.
+- **Operations:** Record a product, quantity, and batch-level packaging, labor,
+  and other costs; review production history. Each batch adds finished units to
+  central inventory.
+- **Function:** `ProductionScreen` (`ui/production.py`) and
+  `ProductionService` (`service/production_service.py`); API route `/batches`.
+- **Output:** A production batch with total and per-unit cost, plus updated
+  finished-product stock at `LOC-CENTRAL`.
 
 ### Finished-product inventory and events
 
 - **Problem:** The business needs to reconcile stock and track quantities taken to
   and returned from booths.
 - **Operations:** View on-hand, reserved, and available stock; transfer stock
-  between locations; reconcile physical counts; inspect movements; create events
-  and close them to return unsold stock to central inventory.
-- **Function:** `InventoryScreen` (`ui/inventory.py`),
-  `EventScreen` (`ui/events.py`), and `InventoryService`/`EventService` in
-  `service/`; API routes `/inventory` and `/events`.
-- **Input:** Location, product, transfer or counted quantity and reason; event ID,
-  event name, location, and date. Event IDs are used as inventory location IDs.
-- **Output:** Updated stock and movement records. Closing an event returns its
-  remaining stock to `LOC-CENTRAL`; it is blocked while pending reservations remain
-  at that location.
+  between locations; reconcile physical counts; and inspect movements. Event
+  setup and closing are not exposed in the console.
+- **Function:** `InventoryScreen` (`ui/inventory.py`) and
+  `InventoryService` (`service/inventory_service.py`); API routes `/inventory`.
+- **Input:** Location, product, transfer or counted quantity, and reason.
+- **Output:** Updated stock and movement records.
 - **Requirement:** Monitor booth quantities, retain unsold items, and record
   physical count adjustments.
 
@@ -137,14 +133,12 @@ validates, processes, and saves it.
 
 - **Problem:** The business needs sales and cost summaries by day, product, and
   selling location.
-- **Operations:** Record and manage dated expenses, optionally link an expense to
-  a production batch, and query sales, best sellers, locations, production costs,
+- **Operations:** Query sales, best sellers, locations, production costs,
   expenses, low stock, and financial summaries by supported date/location filters.
-- **Function:** `ExpenseScreen` (`ui/expenses.py`), `ReportScreen` (`ui/reports.py`),
-  `ExpenseService` and `ReportService` under `service/`; API routes `/expenses`
-  and `/reports`.
-- **Input:** Expense ID, category, amount, date, and optional batch/location
-  references; reports accept date range and/or location.
+  Expense entry and management are not exposed in the console.
+- **Function:** `ReportScreen` (`ui/reports.py`) and `ReportService`
+  (`service/report_service.py`); API routes `/reports`.
+- **Input:** Reports accept date range and/or location.
 - **Output:** Daily completed sales, quantities/revenue by product, ranked best
   sellers, totals by named event location/category, low-stock warnings, production
   costs, and estimated profit.
@@ -159,12 +153,11 @@ validates, processes, and saves it.
 | Route | Purpose |
 |---|---|
 | `/products` | Product catalog CRUD and deactivation |
-| `/ingredients` | Raw ingredient stock and adjustments |
-| `/batches` | Production history, ingredient deduction, finished stock |
+| `/batches` | Production history, batch costs, finished stock |
 | `/inventory/stock`, `/inventory/transfer`, `/inventory/adjustments`, `/inventory/movements` | Stock, transfers, counts, and history |
-| `/events` | Event setup, lookup, and unsold-stock return |
+| `/events` | Event setup, lookup, and unsold-stock return (API only) |
 | `/orders` | Sales and reservations, list and status transitions |
-| `/expenses` | Expense create/list/update/delete |
+| `/expenses` | Expense create/list/update/delete (API only) |
 | `/reports/dashboard`, `/reports/low-stock` | Operational dashboard and warnings |
 | `/reports/daily-sales`, `/reports/product-sales`, `/reports/best-sellers`, `/reports/location-sales` | Sales analysis |
 | `/reports/production-costs`, `/reports/expenses`, `/reports/financial-summary` | Cost and financial analysis |
@@ -174,9 +167,7 @@ validates, processes, and saves it.
 - Estimated COGS is derived from recorded production batches and is not a
   lot-specific inventory valuation. Profit is therefore an estimate, not an
   accounting statement.
-- Raw-material purchase expenses are reported as expenses; they are not counted
-  again as operating expenses in estimated profit. Batch-linked expenses are
-  included in production-cost estimates.
+- Batch-linked expenses are included in production-cost estimates.
 - Messenger is recorded as an order channel; the system does not connect to or
   send messages through Messenger.
 - The backend uses a local JSON file and has no authentication or role-based
