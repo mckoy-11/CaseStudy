@@ -1,73 +1,59 @@
-"""Console screens for production batch recording."""
-
-from __future__ import annotations
-
-from datetime import datetime
-from uuid import uuid4
-
-from service.product_service import ProductService
-from service.production_service import ProductionService
-from utils.component import ask_identifier, ask_number, display_records, show_menu
+"""Chocolate production: measured ingredient use and finished product count."""
+from ui.display import heading, section, step, notice, success, warn, show_table, show_summary, qty_text, pesos
+from ui.inputs import ask_date, intask, amountask, ask_optional, confirm
+from ui.catalog import inventory, show_ingredients
 
 
-class ProductionScreen:
-    """Record finished-product output and batch-level production costs."""
+def production_menu(api):
+    heading("Make chocolate products", "Weigh real ingredients first; count finished units after molding.")
+    step(1, "Select product and date")
+    day = ask_date("Production date (YYYY-MM-DD)")
+    products = inventory(api)
+    if not products:
+        warn("Add a chocolate product first.")
+        return
+    pid = intask("Product ID to produce", allowed={x["id"] for x in products})
+    product = api.call("GET", f"/api/products/{pid}")
+    recipe = product.get("recipe", [])
+    if not recipe:
+        warn("This product has no recipe. Set its recipe in menu 3 before production.")
+        return
+    ingredients = {x["id"]: x for x in show_ingredients(api)}
+    show_table(["Ingredient", "Recipe amount / item", "Currently in stock"],
+               [(ingredients[x["ingredient_id"]]["name"],
+                 f"{qty_text(x['quantity'])} {ingredients[x['ingredient_id']]['unit']}",
+                 f"{qty_text(ingredients[x['ingredient_id']]['quantity'])} {ingredients[x['ingredient_id']]['unit']}")
+                for x in recipe], "PRODUCT RECIPE")
+    step(2, "Enter actual ingredient usage", "The saved recipe is a guide only. Enter the amount weighed for this run.")
+    actual = []
+    for row in recipe:
+        item = ingredients[row["ingredient_id"]]
+        if item["quantity"] <= 0:
+            warn(f"No {item['name']} left in stock. Purchase ingredients first.")
+            return
+        section(f"INGREDIENT: {item['name']}", f"Available: {qty_text(item['quantity'])} {item['unit']}")
+        quantity = amountask(f"Actual {item['name']} used ({item['unit']})", item["unit"],
+                             maximum=item["quantity"])
+        actual.append({"ingredient_id": item["id"], "quantity": quantity})
+    step(3, "Count molded and packaged chocolates", new_page=True,
+         context=f"Production: {product['name']}")
+    finished = intask("Actual finished pouches/bars counted")
+    notes = ask_optional("Production notes (optional)", 300)
+    step(4, "Review before saving", "Nothing is deducted until you confirm.",
+         new_page=True, context="Production confirmation")
+    show_summary("Review production run", [
+        ("Product", product["name"]),
+        ("Production date", day),
+        ("Finished products COUNTED", finished),
+    ])
+    show_table(["Ingredient", "Actual quantity used"],
+               [(ingredients[x["ingredient_id"]]["name"],
+                 f"{qty_text(x['quantity'])} {ingredients[x['ingredient_id']]['unit']}") for x in actual],
+               "STOCK TO BE CONSUMED")
+    if confirm("Deduct ingredients and add finished products to inventory?"):
+        row = api.call("POST", "/api/production", {
+            "date": day, "product_id": pid, "ingredients_used": actual,
+            "finished_quantity": finished, "note": notes})
+        success(f"Production #{row['id']} saved. {finished} finished units added.")
+        notice(f"Weighted-average ingredient cost used: {pesos(row['total_cost'])}.")
 
-    def __init__(
-        self,
-        production: ProductionService,
-        products: ProductService,
-    ) -> None:
-        self.production = production
-        self.products = products
-
-    def run(self) -> None:
-        choice = show_menu([
-            "[1] Record production batch",
-            "[2] View production history",
-            "[0] Back",
-        ])
-        if choice == 1:
-            self.record_batch()
-        elif choice == 2:
-            self.list_batches()
-        elif choice != 0:
-            print("Select a valid production option.")
-
-    def record_batch(self) -> dict:
-        product_list = self.products.list_products()
-        display_records(
-            "Products",
-            product_list,
-            (("ID", "product_id"), ("Product", "name"), ("Price", "unit_price")),
-        )
-        payload = {
-            "batch_id": f"BATCH-{datetime.now():%Y%m%d}-{uuid4().hex[:6].upper()}",
-            "product_id": ask_identifier("Product ID: "),
-            "quantity_produced": int(ask_number("Quantity produced: ", minimum=1)),
-            "ingredients_used": [],
-            "packaging_cost": ask_number("Packaging cost for batch (PHP, 0 if none): ", minimum=0),
-            "labor_cost": ask_number("Labor cost for batch (PHP, 0 if none): ", minimum=0),
-            "other_cost": ask_number("Other production cost (PHP, 0 if none): ", minimum=0),
-        }
-        result = self.production.record_batch(payload)
-        print(f"Production batch {result['batch_id']} recorded.")
-        print(f"Total batch cost: ₱{result['total_batch_cost']:,.2f}")
-        print(f"Unit production cost: ₱{result['unit_production_cost']:,.2f}")
-        return result
-
-    def list_batches(self) -> list[dict]:
-        batches = self.production.list_batches()
-        display_records(
-            "Production History",
-            batches,
-            (
-                ("Batch", "batch_id"),
-                ("Date", "production_date"),
-                ("Product ID", "product_id"),
-                ("Quantity", "quantity_produced"),
-                ("Batch Cost", "total_batch_cost"),
-                ("Unit Cost", "unit_production_cost"),
-            ),
-        )
-        return batches
