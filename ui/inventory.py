@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from service.inventory_service import InventoryService
 from service.product_service import ProductService
-from utils.component import ask_int, ask_text, display_records, show_menu
+from utils.component import ask_identifier, ask_int, ask_text, display_records, show_menu
 
 
 class InventoryScreen:
@@ -31,7 +31,7 @@ class InventoryScreen:
             if choice == 1:
                 self.list_stock()
             elif choice == 2:
-                self.list_stock(ask_text("Location ID: "))
+                self.list_stock(ask_identifier("Location ID: "))
             elif choice == 3:
                 self.transfer_stock()
             elif choice == 4:
@@ -62,15 +62,15 @@ class InventoryScreen:
             products,
             (("ID", "product_id"), ("Product", "name"), ("Price", "unit_price")),
         )
-        source = ask_text("Source location ID: ")
-        destination = ask_text("Destination location ID: ")
+        source = ask_identifier("Source location ID: ")
+        destination = ask_identifier("Destination location ID: ")
         if source == destination:
             raise ValueError("Source and destination locations must be different.")
         payload = {
             "movement_id": f"MOV-{uuid4().hex[:12].upper()}",
             "source_location_id": source,
             "destination_location_id": destination,
-            "product_id": ask_text("Product ID: "),
+            "product_id": ask_identifier("Product ID: "),
             "quantity": ask_int("Quantity to transfer: ", minimum=1),
         }
         result = self.inventory.transfer_stock(payload)
@@ -78,7 +78,7 @@ class InventoryScreen:
         return result
 
     def reconcile_stock(self) -> dict:
-        location_id = ask_text("Location ID: ")
+        location_id = ask_identifier("Location ID: ")
         stock = self.inventory.get_stock_levels(location_id)
         if stock:
             display_records(
@@ -86,7 +86,7 @@ class InventoryScreen:
                 stock,
                 (("Product ID", "product_id"), ("Product", "product_name"), ("On hand", "quantity_on_hand")),
             )
-        product_id = ask_text("Product ID to count: ")
+        product_id = ask_identifier("Product ID to count: ")
         if not any(item["product_id"] == product_id for item in self.products.list_products()):
             raise ValueError(f"Unknown product ID: {product_id}")
         current = next(
@@ -108,8 +108,8 @@ class InventoryScreen:
         return result
 
     def movement_history(self) -> list[dict]:
-        location_id = ask_text("Location ID filter (blank for all): ", required=False) or None
-        product_id = ask_text("Product ID filter (blank for all): ", required=False) or None
+        location_id = ask_identifier("Location ID filter (blank for all): ", required=False) or None
+        product_id = ask_identifier("Product ID filter (blank for all): ", required=False) or None
         movements = self.inventory.list_movements(location_id, product_id)
         display_records(
             "Stock Movement History",

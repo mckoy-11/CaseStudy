@@ -3,7 +3,7 @@
 from datetime import date
 
 from service.report_service import ReportService
-from utils.component import ask_text, section, show_menu, show_table
+from utils.component import ask_identifier, ask_text, section, show_menu, show_table
 
 
 class ReportScreen:
@@ -77,7 +77,7 @@ class ReportScreen:
 
     def show_range(self) -> dict:
         start_date, end_date = self._date_range()
-        location_id = ask_text("Location ID filter (blank for all): ", required=False) or None
+        location_id = ask_identifier("Location ID filter (blank for all): ", required=False) or None
         report = self.reports.sales_summary(location_id, start_date, end_date)
         section("Sales Summary by Date and Location")
         self._show_summary_fields(report)
@@ -85,7 +85,7 @@ class ReportScreen:
 
     def show_best_sellers(self) -> list[dict]:
         filters = self._date_filter_dict()
-        location = ask_text("Location ID filter (blank for all): ", required=False)
+        location = ask_identifier("Location ID filter (blank for all): ", required=False)
         if location:
             filters["location_id"] = location
         rows = self.reports.best_sellers(**filters)
@@ -100,7 +100,7 @@ class ReportScreen:
 
     def show_product_sales(self) -> list[dict]:
         filters = self._date_filter_dict()
-        location = ask_text("Location ID filter (blank for all): ", required=False)
+        location = ask_identifier("Location ID filter (blank for all): ", required=False)
         if location:
             filters["location_id"] = location
         rows = self.reports.product_sales(**filters)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from service.ingredient_service import IngredientService
-from utils.component import ask_number, ask_text, display_records, show_menu
+from utils.component import ask_identifier, ask_number, ask_text, display_records, show_menu
 
 
 class IngredientScreen:
@@ -67,7 +67,7 @@ class IngredientScreen:
 
     def adjust_stock(self) -> dict:
         ingredients = self.list_ingredients()
-        ingredient_id = ask_text("Ingredient ID: ")
+        ingredient_id = ask_identifier("Ingredient ID: ")
         if not any(item["ingredient_id"] == ingredient_id for item in ingredients):
             raise ValueError(f"Unknown ingredient ID: {ingredient_id}")
         quantity_change = ask_number(
@@ -83,7 +83,7 @@ class IngredientScreen:
         return result
 
     def update_ingredient(self) -> dict:
-        ingredient_id = ask_text("Ingredient ID: ")
+        ingredient_id = ask_identifier("Ingredient ID: ")
         changes = {}
         name = ask_text("New name (blank to keep): ", required=False)
         unit = ask_text("New unit (blank to keep): ", required=False)

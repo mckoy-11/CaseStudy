@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from service.product_service import ProductService
-from utils.component import ask_int, ask_number, ask_text, display_records, show_menu
+from utils.component import ask_identifier, ask_int, ask_number, ask_text, display_records, show_menu
 
 
 PRODUCT_FIELDS = (
@@ -53,7 +53,7 @@ class ProductScreen:
 
     def create_product(self) -> dict:
         product = {
-            "product_id": ask_text("Product ID (blank for generated): ", required=False)
+            "product_id": ask_identifier("Product ID (blank for generated): ", required=False)
             or f"PROD-{uuid4().hex[:8].upper()}",
             "name": ask_text("Product name: ", max_length=160),
             "unit_price": ask_number("Selling price (PHP): ", minimum=0.01),
@@ -70,7 +70,7 @@ class ProductScreen:
         return created
 
     def update_product(self) -> dict:
-        product_id = ask_text("Product ID: ")
+        product_id = ask_identifier("Product ID: ")
         changes = {}
         name = ask_text("New name (blank to keep): ", required=False)
         price = ask_number("New unit price (blank to keep): ", minimum=0.01, allow_blank=True)
@@ -94,11 +94,11 @@ class ProductScreen:
         return self.service.update_product(product_id, changes)
 
     def deactivate_product(self) -> None:
-        product_id = ask_text("Product ID to deactivate: ")
+        product_id = ask_identifier("Product ID to deactivate: ")
         if not any(item["product_id"] == product_id for item in self.service.list_products()):
             raise ValueError(f"Unknown active product ID: {product_id}")
         confirmation = ask_text("Type DEACTIVATE to confirm: ")
-        if confirmation != "DEACTIVATE":
+        if confirmation.casefold() != "deactivate":
             print("Product deactivation cancelled.")
             return
         self.service.deactivate_product(product_id)

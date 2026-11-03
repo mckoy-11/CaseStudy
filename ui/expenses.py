@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from service.expense_service import ExpenseService
 from service.production_service import ProductionService
-from utils.component import ask_choice, ask_number, ask_text, display_records, show_menu
+from utils.component import ask_choice, ask_identifier, ask_number, ask_text, display_records, show_menu
 
 
 EXPENSE_CATEGORIES = (
@@ -76,7 +76,7 @@ class ExpenseScreen:
                 batches,
                 (("Batch ID", "batch_id"), ("Product ID", "product_id"), ("Date", "production_date")),
             )
-        related_batch_id = ask_text(
+        related_batch_id = ask_identifier(
             "Related production batch ID (blank if not production-related): ",
             required=False,
         ) or None
@@ -89,14 +89,14 @@ class ExpenseScreen:
                 f"{ask_text('Expense date (YYYY-MM-DD, blank for today): ', required=False) or date.today().isoformat()}T00:00:00"
             ),
             "related_batch_id": related_batch_id,
-            "location_id": ask_text("Location ID (optional): ", required=False) or None,
+            "location_id": ask_identifier("Location ID (optional): ", required=False) or None,
         }
         result = self.expenses.create_expense(payload)
         print(f"Expense {result['expense_id']} recorded.")
         return result
 
     def update_expense(self) -> dict:
-        expense_id = ask_text("Expense ID: ")
+        expense_id = ask_identifier("Expense ID: ")
         changes = {}
         description = ask_text("New description (blank to keep): ", required=False)
         amount = ask_number("New amount (blank to keep): ", minimum=0.01, allow_blank=True)
@@ -110,9 +110,9 @@ class ExpenseScreen:
         return self.expenses.update_expense(expense_id, changes)
 
     def delete_expense(self) -> None:
-        expense_id = ask_text("Expense ID: ")
+        expense_id = ask_identifier("Expense ID: ")
         confirm = ask_text(f"Type DELETE to remove {expense_id}: ")
-        if confirm != "DELETE":
+        if confirm.casefold() != "delete":
             print("Expense deletion cancelled.")
             return
         self.expenses.delete_expense(expense_id)

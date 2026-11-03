@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from service.product_service import ProductService
 from service.production_service import ProductionService
-from utils.component import ask_number, ask_text, display_records, show_menu
+from utils.component import ask_identifier, ask_number, display_records, show_menu
 
 
 class ProductionScreen:
@@ -43,7 +43,7 @@ class ProductionScreen:
         )
         payload = {
             "batch_id": f"BATCH-{datetime.now():%Y%m%d}-{uuid4().hex[:6].upper()}",
-            "product_id": ask_text("Product ID: "),
+            "product_id": ask_identifier("Product ID: "),
             "quantity_produced": int(ask_number("Quantity produced: ", minimum=1)),
             "ingredients_used": [],
             "packaging_cost": ask_number("Packaging cost for batch (PHP, 0 if none): ", minimum=0),

@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from service.event_service import EventService
 from service.inventory_service import InventoryService
-from utils.component import ask_text, display_records, show_menu, show_table
+from utils.component import ask_identifier, ask_text, display_records, show_menu, show_table
 
 
 class EventScreen:
@@ -75,7 +75,7 @@ class EventScreen:
             events,
             (("ID", "event_id"), ("Event", "name"), ("Location", "location_name")),
         )
-        event_id = ask_text("Event ID to close: ")
+        event_id = ask_identifier("Event ID to close: ")
         if not any(item["event_id"] == event_id for item in events):
             raise ValueError(f"Unknown open event: {event_id}")
         stock = self.inventory.get_stock_levels(event_id)

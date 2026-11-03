@@ -22,10 +22,9 @@ class FakeProductService:
 def test_record_batch_does_not_require_ingredient_or_recipe_input(monkeypatch) -> None:
     production = FakeProductionService()
     screen = ProductionScreen(production, FakeProductService())
-    prompts = iter(("PROD-1",))
     amounts = iter((6, 2, 4, 2))
 
-    monkeypatch.setattr("ui.production.ask_text", lambda _prompt: next(prompts))
+    monkeypatch.setattr("builtins.input", lambda _prompt: "prod-1")
     monkeypatch.setattr(
         "ui.production.ask_number",
         lambda _prompt, **_kwargs: next(amounts),

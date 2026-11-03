@@ -94,6 +94,11 @@ def ask_text(prompt: str, *, required: bool = True, max_length: int | None = Non
         return value
 
 
+def ask_identifier(prompt: str, *, required: bool = True) -> str:
+    """Read an identifier without requiring callers to match its letter case."""
+    return ask_text(prompt, required=required).upper()
+
+
 @overload
 def ask_int(
     prompt: str,

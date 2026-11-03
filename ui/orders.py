@@ -10,6 +10,7 @@ from service.product_service import ProductService
 from service.event_service import EventService
 from utils.component import (
     ask_choice,
+    ask_identifier,
     ask_number,
     ask_text,
     display_records,
@@ -69,7 +70,7 @@ class OrderScreen:
         )
         items_by_product: dict[str, int] = {}
         while True:
-            product_id = ask_text("Product ID (blank when finished): ", required=False)
+            product_id = ask_identifier("Product ID (blank when finished): ", required=False)
             if not product_id:
                 break
             quantity = int(ask_number("Quantity: ", minimum=1))
@@ -107,7 +108,7 @@ class OrderScreen:
                     events,
                     (("Location ID", "location_id"), ("Event", "name"), ("Place", "location_name")),
                 )
-        return ask_text("Sales location ID (use LOC-CENTRAL for central direct sales): ")
+        return ask_identifier("Sales location ID (use LOC-CENTRAL for central direct sales): ")
 
     def list_reservations(self) -> list[dict]:
         orders = self.orders.list_orders(status="pending")
@@ -133,7 +134,7 @@ class OrderScreen:
             pending,
             (("Order ID", "order_id"), ("Customer", "customer_name"), ("Location", "location_id"), ("Total", "total_amount")),
         )
-        order_id = ask_text("Reservation/order ID: ")
+        order_id = ask_identifier("Reservation/order ID: ")
         if not any(item["order_id"] == order_id for item in pending):
             raise ValueError(f"No pending reservation found with ID {order_id}.")
         result = (
